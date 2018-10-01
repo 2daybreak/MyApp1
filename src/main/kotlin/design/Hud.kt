@@ -14,8 +14,13 @@ import org.lwjgl.system.MemoryUtil.NULL
 
 class Hud {
 
+    enum class View(val b: Boolean, val id: Int, val tag: String, val shortcut: object) {
+        MOVE (false, 0, "Move", GLFW_KEY_SHIFT),
+        ROTATE(true, 1, "Rotate", GLFW_KEY_CTRL),
+    }
+    
     enum class Curve(val b: Boolean, val id: Int, val tag: String, val shortcut: object) {
-        SLOPE(flase, 0, "Slope", GLFW_KEY_S),
+        SLOPE(false, 0, "Slope", GLFW_KEY_S),
         ADD   (true, 1, "Add", GLFW_KEY_A),
         DELETE(true, 2, "Delete", GLFW_KEY_D),
         PICK  (true, 3, "Pick", GLFW_KEY_P)
