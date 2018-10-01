@@ -20,6 +20,11 @@ class Hud {
     }
     
     enum class Curve(val b: Boolean, val id: Int, val tag: String, val shortcut: object) {
+        CIRCLE(false, 0, "Circle", GLFW_KEY_C)
+        BSPLINE(true, 1, "B-spline", GLFW_KEY_B)
+        SPLINE (true, 2, "Spline(interpolated)", Interpolated S)
+    }
+    enum class Spline(val b: Boolean, val id: Int, val tag: String, val shortcut: object) {
         SLOPE(false, 0, "Slope", GLFW_KEY_S),
         ADD   (true, 1, "Add", GLFW_KEY_A),
         DELETE(true, 2, "Delete", GLFW_KEY_D),
