@@ -14,6 +14,15 @@ import org.lwjgl.system.MemoryUtil.NULL
 
 class Hud {
 
+    enum class Curve(val b: Boolean, val id: Int, val tag: String, val shortcut: object) {
+        SLOPE(flase, 0, "Slope", GLFW_KEY_S),
+        ADD   (true, 1, "Add", GLFW_KEY_A),
+        DELETE(true, 2, "Delete", GLFW_KEY_D),
+        PICK  (true, 3, "Pick", GLFW_KEY_P)
+        INSERT(true, 4, "Insert", GLFW_KEY_SHIFT)
+        MOVE  (true, 5, "Move", GLFW_KEY_CTRL)
+    }
+    
     private var vg: Long = 0
 
     private var colour: NVGColor? = null
