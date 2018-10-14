@@ -1,7 +1,6 @@
 package design
 
 import org.joml.Vector2d
-import org.joml.Vector2f
 
 import org.lwjgl.glfw.GLFW.*
 
@@ -9,16 +8,14 @@ class Mouse {
 
     private val previousPos: Vector2d = Vector2d(-1.0, -1.0)
 
-    val position: Vector2d = Vector2d(0.0, 0.0)
+    val position: Vector2d = Vector2d()
 
-    val displVec: Vector2f = Vector2f()
+    val motion: Vector2d = Vector2d()
 
     private var currentScroll: Double = 0.toDouble()
 
     var offset: Double = 0.0
         private set
-
-    private var inWindow = false
 
     var isLeftButtonPressed = false
         private set
@@ -29,6 +26,7 @@ class Mouse {
     var isMiddleButtonPressed = false
         private set
 
+    private var inWindow = false
 
     fun init(window: GlfWindow) {
         glfwSetCursorPosCallback(window.windowHandle) { windowHandle, xpos, ypos ->
@@ -47,13 +45,9 @@ class Mouse {
     }
 
     fun input(window: GlfWindow) {
-        displVec.x = 0f
-        displVec.y = 0f
         if (inWindow) {
-            val deltax = position.x - previousPos.x
-            val deltay = position.y - previousPos.y
-            displVec.x = deltax.toFloat()
-            displVec.y = deltay.toFloat()
+            motion.x = position.x - previousPos.x
+            motion.y = position.y - previousPos.y
         }
         previousPos.x = position.x
         previousPos.y = position.y

@@ -2,133 +2,199 @@ package design
 
 import java.nio.ByteBuffer
 import java.nio.DoubleBuffer
-import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import org.lwjgl.glfw.GLFW.glfwGetCursorPos
 import org.lwjgl.nanovg.NVGColor
+import org.lwjgl.nanovg.NVGPaint
 import org.lwjgl.nanovg.NanoVG.*
 import org.lwjgl.nanovg.NanoVGGL3.*
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.NULL
+import design.Enums.*
 
 class Hud {
 
-    enum class View(val b: Boolean, val id: Int, val tag: String, val shortcut: object) {
-        MOVE (false, 0, "Move", GLFW_KEY_SHIFT),
-        ROTATE(true, 1, "Rotate", GLFW_KEY_CTRL),
-    }
-    
-    enum class Curve(val b: Boolean, val id: Int, val tag: String, val shortcut: object) {
-        CIRCLE(false, 0, "Circle", GLFW_KEY_C)
-        BSPLINE(true, 1, "B-spline", GLFW_KEY_B)
-        SPLINE (true, 2, "Spline(interpolated)", Interpolated S)
-    }
-    enum class Spline(val b: Boolean, val id: Int, val tag: String, val shortcut: object) {
-        SLOPE(false, 0, "Slope", GLFW_KEY_S),
-        ADD   (true, 1, "Add", GLFW_KEY_A),
-        DELETE(true, 2, "Delete", GLFW_KEY_D),
-        PICK  (true, 3, "Pick", GLFW_KEY_P)
-        INSERT(true, 4, "Insert", GLFW_KEY_SHIFT)
-        MOVE  (true, 5, "Move", GLFW_KEY_CTRL)
-    }
-    
     private var vg: Long = 0
 
-    private var colour: NVGColor? = null
+    private var colour: NVGColor = NVGColor.create()
+
+    private var paint: NVGPaint = NVGPaint.create()
 
     private var fontBuffer: ByteBuffer? = null
 
     private val dateFormat = SimpleDateFormat("HH:mm:ss")
 
-    private var posx: DoubleBuffer? = null
+    private var posx: DoubleBuffer = MemoryUtil.memAllocDouble(1)
 
-    private var posy: DoubleBuffer? = null
+    private var posy: DoubleBuffer = MemoryUtil.memAllocDouble(1)
 
     private var counter: Int = 0
 
-    @Throws(Exception::class)
-    fun init() {
-        this.vg = nvgCreate(NVG_ANTIALIAS or NVG_STENCIL_STROKES) //nvgCreate(NVG_STENCIL_STROKES)
-        if (this.vg == NULL) {
-            throw Exception("Could not init nanovg")
-        }
+    private var dir = NVG_CW
 
-        fontBuffer = Utils.ioResourceToByteBuffer("/fonts/OpenSans-Bold.ttf", 150 * 1024)
-        val font = nvgCreateFontMem(vg, FONT_NAME, fontBuffer!!, 0)
-        if (font == -1) {
-            throw Exception("Could not add font")
-        }
-        colour = NVGColor.create()
+    private val font = Font.OPENSANSB
 
-        posx = MemoryUtil.memAllocDouble(1)
-        posy = MemoryUtil.memAllocDouble(1)
-
-        counter = 0
+    enum class Font(val id: Int, val file: String) {
+        SCRIPT   (0, "/fonts/FREESCPT.ttf"),
+        GEORGIA  (1, "/fonts/georgia.ttf"),
+        GEORGIAB (2, "/fonts/georgiab.ttf"),
+        GEORGIAI (3, "/fonts/georgiai.ttf"),
+        GEORGIAZ (4, "/fonts/georgiaz.ttf"),
+        OPENSANS (5, "/fonts/OpenSans-Regular.ttf"),
+        OPENSANSB(6, "/fonts/OpenSans-Bold.ttf"),
+        PRECIOUS (7, "/fonts/Precious.ttf"),
+        VIVALDI  (8, "/fonts/VIVALDII.ttf")
     }
 
-    fun render(window: GlfWindow) {
+    @Throws(Exception::class)
+    fun init() {
+
+        this.vg = nvgCreate(NVG_ANTIALIAS or NVG_STENCIL_STROKES)
+        if (this.vg == NULL) throw Exception("Could not init nanovg")
+        fontBuffer = Utils.ioResourceToByteBuffer(font.file, 150 * 1024)
+        val nvgfont = nvgCreateFontMem(vg, font.toString(), fontBuffer?: ByteBuffer.allocate(0), 0)
+        if (nvgfont == -1) throw Exception("Could not add font")
+
+    }
+
+    fun render(window: GlfWindow, mode: Mode, curv: Curve, spln: Spline) {
         val width = window.width.toFloat()
         val height = window.height.toFloat()
+        glfwGetCursorPos(window.windowHandle, posx, posy)
 
         nvgBeginFrame(vg, width, height, 1f)
+        nvgFontFace(vg, font.toString())
 
-        // Upper ribbon
-        nvgBeginPath(vg)
-        nvgRect(vg, 0f, height - 100, width, 50f)
-        nvgFillColor(vg, rgba(0x23, 0xa1, 0xf1, 200, colour!!))
-        nvgFill(vg)
-
-        // Lower ribbon
-        nvgBeginPath(vg)
-        nvgRect(vg, 0f, height - 50, width, 10f)
-        nvgFillColor(vg, rgba(0xc1, 0xe3, 0xf9, 200, colour!!))
-        nvgFill(vg)
-
-        glfwGetCursorPos(window.windowHandle, posx, posy)
-        val xcenter = 50
-        val ycenter = height - 75
-        val radius = 20
-        val x = posx!!.get(0).toInt()
-        val y = posy!!.get(0).toInt()
-        val hover = Math.pow((x - xcenter).toDouble(), 2.0) + Math.pow((y - ycenter).toDouble(), 2.0) < Math.pow(radius.toDouble(), 2.0)
-
-        // Circle
-        nvgBeginPath(vg)
-        nvgCircle(vg, xcenter.toFloat(), ycenter.toFloat(), radius.toFloat())
-        nvgFillColor(vg, rgba(0xc1, 0xe3, 0xf9, 200, colour!!))
-        nvgFill(vg)
-
-        // Clicks Text
-        nvgFontSize(vg, 25.0f)
-        nvgFontFace(vg, FONT_NAME)
-        nvgTextAlign(vg, NVG_ALIGN_CENTER or NVG_ALIGN_TOP)
-        if (hover) {
-            nvgFillColor(vg, rgba(0x00, 0x00, 0x00, 255, colour!!))
-        } else {
-            nvgFillColor(vg, rgba(0x23, 0xa1, 0xf1, 255, colour!!))
+        // Menu
+        fun menu(x: Float, y: Float, w: Float, h: Float) {
+            nvgLinearGradient(vg, x, y, w, h,
+                    rgba(60, 10, 70, 200),
+                    rgba(10, 45, 80, 200),
+                    paint)
+            // rect
+            nvgBeginPath(vg)
+            nvgRect(vg, x, y, w, h)
+            nvgFillPaint(vg, paint)
+            val hover = posy.get(0) < h
+            if (hover) nvgFill(vg)
+            // Render hour text
+            nvgFontSize(vg, 30.0f)
+            nvgTextAlign(vg, NVG_ALIGN_RIGHT or NVG_ALIGN_TOP)
+            nvgFillColor(vg, rgba(255, 255, 255, 200))
+            if (hover) nvgText(vg, width, 0f, dateFormat.format(Date()))
 
         }
-        nvgText(vg, 50f, height - 87, String.format("%02d", counter))
+        menu(0f, 0f, width, 30f)
 
-        // Render hour text
-        nvgFontSize(vg, 40.0f)
-        nvgFontFace(vg, FONT_NAME)
-        nvgTextAlign(vg, NVG_ALIGN_LEFT or NVG_ALIGN_TOP)
-        nvgFillColor(vg, rgba(0xe6, 0xea, 0xed, 255, colour!!))
-        nvgText(vg, width - 150, height - 95, dateFormat.format(Date()))
+        // Tree
+        fun tree(x: Float, y: Float, w: Float, h: Float) {
+            nvgLinearGradient(vg, x, y, w, h,
+                    rgba(60, 10, 70, 120),
+                    rgba(10, 45, 80, 120),
+                    paint)
+            // rect
+            nvgBeginPath(vg)
+            nvgRect(vg, x, y, w, h)
+            nvgFillPaint(vg, paint)
+            val hover = posx.get(0) < w
+            if (hover) nvgFill(vg)
+        }
+        tree(0f, 0f, 200f, height)
+
+        // Control Circle
+        fun circle(x: Float, y: Float, r: Float) {
+            val deg = 2 * NVG_PI * counter / 360f
+            val deg2 = deg * 2f + 0.00001f
+            nvgLinearGradient(vg, x - r, y - r, x + r, y + r,
+                    color(1f, 1f, 0.2f, 0.5f),
+                    color(1f, 0.2f, 0.2f, 0.5f),
+                    paint)
+            nvgStrokePaint(vg, paint)
+            // arc
+            nvgBeginPath(vg)
+            nvgArc(vg, x, y, r, deg, 0.25f * NVG_PI + deg, NVG_CCW)
+            nvgStrokeWidth(vg, 0.25f * r)
+            nvgStroke(vg)
+            // arc
+            /*nvgBeginPath(vg)
+            nvgArc(vg, x, y, r, deg2, 0.25f * NVG_PI + deg2, NVG_CCW)
+            nvgStrokeWidth(vg, 0.12f * r)
+            nvgStroke(vg)*/
+            // arc
+            nvgBeginPath(vg)
+            nvgArc(vg, x, y, r, NVG_PI - deg, NVG_PI - deg2, dir)
+            nvgStrokeWidth(vg, 0.12f * r)
+            nvgStroke(vg)
+            nvgBeginPath(vg)
+            // text
+            nvgBeginPath(vg)
+            nvgFontSize(vg, 0.7f * r)
+            val hover = Math.pow((posx.get(0) - x), 2.0) + Math.pow((posy.get(0) - y), 2.0) < Math.pow(r.toDouble(), 2.0)
+            if (hover)
+                nvgFillColor(vg, color(1f, 1f, 0.2f, 0.5f))
+            else
+                nvgFillPaint(vg, paint)
+            nvgTextAlign(vg, NVG_ALIGN_CENTER or NVG_ALIGN_MIDDLE)
+            when(spln) {
+                Spline.IDLE -> when(curv) {
+                    Curve.IDLE -> nvgText(vg, x, y, mode.tag)
+                    else -> nvgText(vg, x, y, curv.tag)
+                }
+                else ->  nvgText(vg, x, y, spln.tag)
+            }
+
+            counter += 1
+            if (counter >= 360) {
+                counter = 0
+                dir = when (dir) {
+                    NVG_CW -> NVG_CCW
+                    NVG_CCW -> NVG_CW
+                    else -> NVG_CW
+                }
+            }
+
+            if (hover) {
+                when(curv) {
+                    Curve.SPLN -> {
+                        nvgTextAlign(vg, NVG_ALIGN_CENTER or NVG_ALIGN_MIDDLE)
+                        nvgText(vg, x, y - 6.5f * r, Spline.SLOP.tag)
+                        nvgText(vg, x, y - 5.5f * r, Spline.ADD.tag)
+                        nvgText(vg, x, y - 4.5f * r, Spline.DEL.tag)
+                        nvgText(vg, x, y - 3.5f * r, Spline.PICK.tag)
+                        nvgText(vg, x, y - 2.5f * r, Spline.INSE.tag)
+                        nvgText(vg, x, y - 1.5f * r, Spline.MOVE.tag)
+                    }
+                    Curve.IDLE -> {
+                        when(mode) {
+                            Mode.VIEW -> {
+                                nvgTextAlign(vg, NVG_ALIGN_CENTER or NVG_ALIGN_MIDDLE)
+                                nvgText(vg, x, y - 3.5f * r, View.MOVE.tag)
+                                nvgText(vg, x, y - 2.5f * r, View.ROTA.tag)
+                                nvgText(vg, x, y - 1.5f * r, View.IDLE.tag)
+                            }
+
+                            Mode.CURV -> {
+                                nvgTextAlign(vg, NVG_ALIGN_CENTER or NVG_ALIGN_MIDDLE)
+                                nvgText(vg, x, y - 3.5f * r, Curve.CIRC.tag)
+                                nvgText(vg, x, y - 2.5f * r, Curve.BSPL.tag)
+                                nvgText(vg, x, y - 1.5f * r, Curve.SPLN.tag)
+                            }
+                        }
+                    }
+                }
+            }
+
+        }
+        circle(0.5f * width, 0.82f * height, 0.08f * height)
+
+
 
         nvgEndFrame(vg)
 
         // Restore state
         window.restoreState()
-    }
 
-    fun incCounter() {
-        counter++
-        if (counter > 99) {
-            counter = 0
-        }
     }
 
     private fun rgba(r: Int, g: Int, b: Int, a: Int, colour: NVGColor): NVGColor {
@@ -140,18 +206,23 @@ class Hud {
         return colour
     }
 
+    private fun rgba(r: Int, g: Int, b: Int, a: Int): NVGColor {
+        return color(r / 255f, g / 255f, b / 255f, a / 255f)
+    }
+
+    private fun color(r: Float, g: Float, b: Float, a: Float): NVGColor {
+        val c = NVGColor.create()
+        c.r(r)
+        c.g(g)
+        c.b(b)
+        c.a(a)
+        return c
+    }
+
     fun cleanup() {
         nvgDelete(vg)
-        if (posx != null) {
-            MemoryUtil.memFree(posx)
-        }
-        if (posy != null) {
-            MemoryUtil.memFree(posy)
-        }
+        MemoryUtil.memFree(posx)
+        MemoryUtil.memFree(posy)
     }
 
-    companion object {
-
-        private val FONT_NAME = "BOLD"
-    }
 }

@@ -1,20 +1,19 @@
 package design
 
+import design.Enums.*
 import geoModel.*
 import linearAlgebra.Vector3
 import org.joml.*
-
 import org.lwjgl.glfw.GLFW.*
+import gui.DummyGui
 
 class DummyDesign : IDesign {
 
-    enum class Mode(val b: Boolean, val id: Int, val tag: String) {
-        VIEW(false, 0, "View"),
-        CURV(true,  1, "Curve"),
-        SURF(true,  2, "Surface")
-    }
+    private var mode: Mode = Mode.VIEW
 
-    private var mode = Mode.VIEW
+    private var curv: Curve = Curve.IDLE
+
+    private var spln: Spline = Spline.IDLE
 
     private var moving = false
 
@@ -22,24 +21,26 @@ class DummyDesign : IDesign {
 
     private val hud: Hud = Hud()
 
-    private val render: Render = Render() /*Renderer = Renderer()*/
+    private val gui = DummyGui()
+
+    private val render: Render = Render()
 
     private val designItems = mutableListOf<DesignItem>()
 
-    private val curve = mutableListOf<ParametricCurve>()
+    private val curves = mutableListOf<ParametricCurve>()
 
     private var leftButtonPressed = false
 
-    init {
-
-    }
+    private val camera = Camera(Vector3f(0f, 0f, 3f))
 
     @Throws(Exception::class)
     override fun init(window: GlfWindow) {
 
+        gui.init()
         hud.init()
-        render.initShader()
-        // Create the Mesh
+        render.init()
+
+        // Create the gui.Mesh
         val positions = floatArrayOf(
                 // V0
                 -0.5f, 0.5f, 0.5f,
@@ -77,33 +78,64 @@ class DummyDesign : IDesign {
                 1.0f, 1.0f, 1.0f
         )
 
-        val grid = Grid(positions, colours)
-
-        val designItem = DesignItem(grid)
-        designItem.setPosition(0f, 0f, -4f)
+        val mesh = Mesh(positions, colours)
+        val designItem = DesignItem(mesh)
+        designItem.setPosition(0f, 0f, 0f)
         designItems.add(designItem)
         designItems.add(designItem)
-
     }
 
     override fun input(window: GlfWindow, mouse: Mouse) {
 
-        if (window.isKeyPressed(GLFW_KEY_ESCAPE)) mode = Mode.VIEW
-        if (window.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) moving = true
-        if (window.isKeyPressed(GLFW_KEY_LEFT_CONTROL)) rotating = true
-        if (window.isKeyPressed(GLFW_KEY_C)) {
-            curve.add(InterpolatedBspline())
-            mode = Mode.CURV
-            println("C pressed")
-        }
+        if (window.isKeyPressed(GLFW_KEY_W)) camera.position.add(Vector3f(camera.front).mul(0.05f))
+        if (window.isKeyPressed(GLFW_KEY_S)) camera.position.add(Vector3f(camera.front).mul(-0.05f))
+        if (window.isKeyPressed(GLFW_KEY_A)) camera.position.add(Vector3f(camera.front).cross(Vector3f(camera.up)).normalize().mul(-0.05f))
+        if (window.isKeyPressed(GLFW_KEY_D)) camera.position.add(Vector3f(camera.front).cross(Vector3f(camera.up)).normalize().mul(0.05f))
 
+        if (window.isKeyPressed(GLFW_KEY_ESCAPE)) {
+            mode = Mode.VIEW
+            curv = Curve.IDLE
+            spln = Spline.IDLE
+        }
+        if (window.isKeyPressed(GLFW_KEY_F2)) {
+            mode = Mode.IDLE
+        }
+        if (window.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) {
+            when {
+                mode == Mode.IDLE -> moving = true
+                mode == Mode.VIEW -> moving = true
+                curv == Curve.BSPL -> spln = Spline.INSE
+                curv == Curve.SPLN -> spln = Spline.INSE
+            }
+        }
+        if (window.isKeyPressed(GLFW_KEY_LEFT_CONTROL)) {
+            when {
+                mode == Mode.IDLE -> rotating = true
+                mode == Mode.VIEW -> rotating = true
+                curv == Curve.BSPL -> spln = Spline.MOVE
+                curv == Curve.SPLN -> spln = Spline.MOVE
+            }
+        }
+        if (window.isKeyPressed(GLFW_KEY_C)) {
+            mode = Mode.CURV
+        }
+        if (window.isKeyPressed(GLFW_KEY_C)) {
+            if(mode == Mode.CURV) {
+                curv = Curve.SPLN
+                curves.add(InterpolatedBspline())
+            }
+        }
         val aux = mouse.isLeftButtonPressed
         if (aux && !this.leftButtonPressed) {
             when(mode) {
                 Mode.CURV -> {
-                    val pos: Vector2d = mouse.position
-                    updateCurve(pos)
-                    println("x=${pos.x}, y=${pos.y}")
+                    when(curv) {
+                        Curve.SPLN -> {
+                            val pos: Vector2d = mouse.position
+                            updateCurve(pos)
+                        }
+
+                    }
                 }
                 else -> {}
             }
@@ -114,75 +146,76 @@ class DummyDesign : IDesign {
     override fun update(interval: Float, mouse: Mouse) {
 
         val off: Double = mouse.offset
-        updateScale(off)
+        updateZoom(off)
 
         if (mouse.isLeftButtonPressed) {
-            val del: Vector2f = mouse.displVec
-            when(mode) {
-                Mode.VIEW -> {
-                    updateTranslation(del)
-                    updateRotation(del)
-                }
-                Mode.CURV -> {
-                    updateTranslation(del)
-                }
-                Mode.SURF -> {}
-            }
+            val del: Vector2d = mouse.motion
+            updateTranslation(del)
+            updateRotation(del)
         }
     }
 
-    private fun updateTranslation(del: Vector2f) {
+    private fun updateTranslation(x: Float, y: Float, z: Float) {
         val mouseSensitivity = 5f
-        for (gameItem in designItems) if (moving) {
-            val pos = gameItem.position
-            pos.x += mouseSensitivity * del.x
-            pos.y += mouseSensitivity * del.y
-            gameItem.setPosition(pos.x, pos.y, pos.z)
-        }
+        camera.position.add(Vector3f(camera.front).cross(Vector3f(camera.up)).normalize().mul(-x * mouseSensitivity))
+        camera.position.add(Vector3f(camera.up).mul(-y * mouseSensitivity))
+    }
+
+    private fun updateTranslation(del: Vector2d) {
+        if (moving) updateTranslation(del.x.toFloat(), del.y.toFloat(), 0f)
         moving = false
     }
 
-    private fun updateRotation(del: Vector2f) {
-        val mouseSensitivity = 5f
-        for (gameItem in designItems) if (rotating) {
-            val q = gameItem.quaternion
-            q.rotateLocalX(mouseSensitivity * -del.y)
-            q.rotateLocalY(mouseSensitivity * del.x)
+    private fun updateRotation(del: Vector2d) {
+        if (rotating) {
+            val mouseSensitivity = 5f
+            when(mode.b) {
+                true -> {
+                    val q = render.quaternionf
+                    q.rotateLocalX(mouseSensitivity * -del.y.toFloat())
+                    q.rotateLocalY(mouseSensitivity * del.x.toFloat())
+                }
+                false -> {
+                    camera.quaternionf.identity()
+                    camera.quaternionf.rotateAxis(mouseSensitivity * del.y.toFloat(), camera.right)
+                    camera.quaternionf.rotateAxis(mouseSensitivity * -del.x.toFloat(), camera.up)
+                    camera.setRotation()
+                }
+            }
+            rotating = false
         }
-        rotating = false
     }
 
-    private fun updateScale(offset: Double) {
-        val wheelSensitivity = 0.05f
-        for (gameItem in designItems) {
-            val q = gameItem.quaternion
-            var scale = gameItem.scale
-            scale += (wheelSensitivity * offset).toFloat()
-            q.scale(scale)
-            gameItem.setQuaternion(q.x, q.y, q.z, q.w)
-        }
+    private fun updateZoom(offset: Double) {
+        val wheelSensitivity = 1f
+        camera.position.add(Vector3f(camera.front).mul(wheelSensitivity * offset.toFloat()))
     }
 
     private fun updateCurve(e: Vector2d) {
-
-        val v = Vector4d(e.x, e.y, -4.0, 1.0).mul(render.projectMat4.invert())
-        val c = curve[0]
-        c.addPts(Vector3(v.x, v.y, 0.0))
-        val item = DesignItem(c.getGrid())
-        item.setPosition(0f, 0f, -4.0f)
-        designItems[0] = item
+        if (!moving) {
+            val p = camera.position
+            // NDC to model coord.
+            val v = Vector4f(e.x.toFloat(), e.y.toFloat(), -1f, 1f).mul(Matrix4f(render.projMat4).invert()).mul(Matrix4f(render.viewMat4).invert())
+            val c = curves[0]
+            c.addPts(Vector3(v.x, v.y, v.z))
+            println("x=${v.x}, y=${v.y}, z=${v.z}")
+            val item = DesignItem(c.getMesh())
+            designItems[0] = item
+        }
     }
 
     override fun render(window: GlfWindow) {
-        render.render(window, designItems)
-        hud.render(window)
+        render.render(window, mode, camera, designItems)
+        gui.render(window)
+        hud.render(window, mode, curv, spln)
     }
 
     override fun cleanup() {
         render.cleanup()
         for (gameItem in designItems) {
-            gameItem.grid.cleanUp()
+            gameItem.mesh.cleanUp()
         }
+        hud.cleanup()
     }
-
 }
+

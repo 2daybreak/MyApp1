@@ -2,6 +2,9 @@ package design
 
 import org.joml.Matrix4f
 import org.lwjgl.opengl.GL11.*
+import design.Enums.*
+import org.joml.Quaternionf
+import org.joml.Vector3f
 
 class Render {
 
@@ -9,22 +12,26 @@ class Render {
 
     private lateinit var shaderProgram: Shader
 
-    private val FOV = Math.toRadians(60.0).toFloat()
+    private lateinit var hudShaderProgram: Shader
 
     private val Z_NEAR = 0.01f
 
     private val Z_FAR = 1000f
 
-    lateinit var projectMat4: Matrix4f
+    val FOV = Math.toRadians(60.0).toFloat()
 
-    val perspective = true
+    var projMat4 = Matrix4f()
+
+    var viewMat4 = Matrix4f()
+
+    val quaternionf: Quaternionf = Quaternionf(0f, 0f, 0f, 1f)
 
     @Throws(Exception::class)
-    fun initShader() {
+    fun init() {
         // Create shader
         shaderProgram = Shader()
-        shaderProgram.createVertexShader(Utils.loadResource("/shaders/vertex0.vs"))
-        shaderProgram.createFragmentShader(Utils.loadResource("/shaders/fragment0.fs"))
+        shaderProgram.createVertexShader(Utils.loadResource("/shaders/vertex0.glsl"))
+        shaderProgram.createFragmentShader(Utils.loadResource("/shaders/fragment0.glsl"))
         shaderProgram.link()
 
         // Create uniforms for world and projection matrices
@@ -37,7 +44,7 @@ class Render {
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT or GL_STENCIL_BUFFER_BIT)
     }
 
-    fun render(window: GlfWindow, designItems: List<DesignItem>) {
+    fun render(window: GlfWindow, mode: Mode, camera: Camera, designItems: List<DesignItem>) {
         clear()
 
         if (window.isResized) {
@@ -47,24 +54,24 @@ class Render {
         // Bind(finalize) the data
         shaderProgram.bind()
 
-        // Update projection Matrix
-        val projectionMatrix = when(perspective) {
-            true -> transformation.getProjectionMatrix(FOV, window.width.toFloat(), window.height.toFloat(), Z_NEAR, Z_FAR)
-            false -> transformation.getOrthographicMatrix(window.width.toFloat(), window.height.toFloat(), Z_NEAR, Z_FAR)
-        }
+        // Update projection matrix
+        val projectionMatrix = transformation.getProjectionMatrix(FOV, window.width.toFloat(), window.height.toFloat(), Z_NEAR, Z_FAR)
+        //val projectionMatrix = transformation.getOrthographicMatrix(window.width.toFloat(), window.height.toFloat(), Z_NEAR, Z_FAR)
         shaderProgram.setUniform("projectionMatrix", projectionMatrix)
-        projectMat4 = projectionMatrix
+        projMat4 = transformation.getProjectionMatrix(FOV, window.width.toFloat(), window.height.toFloat(), 1f, 2f)
 
-        //shaderProgram.setUniform("texture_sampler", 0)
-        // Render each gameItem
+        // Set world matrix for this item
+        val worldMatrix = when(mode.b) {
+            true -> transformation.getWorldMatrix(Vector3f(camera.position).negate(), quaternionf)
+            false -> transformation.getWorldMatrix(camera)
+        }
+        shaderProgram.setUniform("worldMatrix", worldMatrix)
+        viewMat4 = Matrix4f(worldMatrix)
+
+        // Update world matrix & Render each gameItem
         for (item in designItems) {
-            // Set world matrix for this item
-            val worldMatrix = transformation.getWorldMatrix(
-                    item.position,
-                    item.quaternion)
-            shaderProgram.setUniform("worldMatrix", worldMatrix)
             // Render
-            item.grid.render()
+            item.mesh.render()
         }
 
         shaderProgram.unbind()

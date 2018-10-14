@@ -1,14 +1,7 @@
 package geoModel
 
-import design.Grid
+import design.Mesh
 import linearAlgebra.Vector3
-import org.lwjgl.opengl.GL11.*
-import org.lwjgl.opengl.GL15.*
-import org.lwjgl.opengl.GL20.*
-import org.lwjgl.opengl.GL30.*
-import org.lwjgl.system.MemoryUtil
-import java.nio.FloatBuffer
-import java.util.ArrayList
 
 abstract class ParametricCurve: Parametric {
 
@@ -72,7 +65,7 @@ abstract class ParametricCurve: Parametric {
      */
     protected abstract fun closestPoint(v: Vector3): Vector3
 
-    fun getGrid(): Grid {
+    fun getMesh(): Mesh {
         val c = this
         val linePerNode = 8
         val node = mutableListOf<Vector3>()
@@ -94,6 +87,6 @@ abstract class ParametricCurve: Parametric {
         }
         val colours : FloatArray = tmp.toFloatArray()
 
-        return Grid(positions, colours)
+        return Mesh(positions, colours)
     }
 }

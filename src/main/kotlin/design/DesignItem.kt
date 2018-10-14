@@ -3,22 +3,15 @@ package design
 import org.joml.Quaternionf
 import org.joml.Vector3f
 
-class DesignItem(var grid: Grid) {
+class DesignItem(var mesh: Mesh) {
 
-    val position: Vector3f
+    val position: Vector3f = Vector3f(0f, 0f, 0f)
 
-    val rotation: Vector3f
+    val rotation: Vector3f = Vector3f(0f, 0f, 0f)
 
-    var scale: Float = 0.toFloat()
+    var scale: Float = 1f
 
-    val quaternion: Quaternionf
-
-    init {
-        position = Vector3f(0f, 0f, 0f)
-        rotation = Vector3f(0f, 0f, 0f)
-        scale = 1f
-        quaternion = Quaternionf(0f, 0f, 0f, 1f)
-    }
+    val quaternion: Quaternionf = Quaternionf(0f, 0f, 0f, 1f)
 
     fun setPosition(x: Float, y: Float, z: Float) {
         this.position.x = x

@@ -20,7 +20,7 @@ class Transform {
     fun getOrthographicMatrix(width: Float, height: Float, zNear: Float, zFar: Float): Matrix4f {
         val aspectRatio = width / height
         projectionMatrix.identity()
-        projectionMatrix.ortho(0f, aspectRatio, 0f, 1f, zNear, zFar)
+        projectionMatrix.ortho(-aspectRatio, aspectRatio, -1f, 1f, zNear, zFar)
         return projectionMatrix
     }
 
@@ -33,4 +33,14 @@ class Transform {
         worldMatrix.identity().translate(offset).rotate(quaternion)
         return worldMatrix
     }
+
+    fun getWorldMatrix(camera: Camera): Matrix4f {
+        val p = camera.position
+        val f = camera.front
+        val u = camera.up
+
+        worldMatrix.identity().lookAt(p, Vector3f(p.x + f.x, p.y + f.y, p.z + f.z), u)
+        return worldMatrix
+    }
+
 }
