@@ -1,10 +1,9 @@
 package gui
 
-import org.lwjgl.opengl.GL30.*
-
 import design.GlfWindow
-import design.Utils
+import org.lwjgl.opengl.GL30.*
 import org.joml.Matrix4f
+import design.Utils.loadResource
 
 class Renderer {
 
@@ -14,8 +13,8 @@ class Renderer {
     fun init() {
         // create shader
         shaderProgram = ShaderProgram()
-        shaderProgram.createVertexShader(Utils.loadResource("/shaders/vertexGui.glsl"))
-        shaderProgram.createFragmentShader(Utils.loadResource("/shaders/fragmentGui.glsl"))
+        shaderProgram.createVertexShader(loadResource("/shaders/vertexGui.glsl"))
+        shaderProgram.createFragmentShader(loadResource("/shaders/fragmentGui.glsl"))
         shaderProgram.link()
         // create uniform
         shaderProgram.createUniform("projectionMatrix")

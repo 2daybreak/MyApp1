@@ -16,7 +16,6 @@ class Mesh(val positions: FloatArray, val textCoords: FloatArray?, val indices: 
         false -> 0
     }
 
-
     constructor(positions: FloatArray, colours: FloatArray, indices: IntArray)
             : this(positions, null, indices, null) {
         var colourBuffer: FloatBuffer? = null
@@ -116,6 +115,20 @@ class Mesh(val positions: FloatArray, val textCoords: FloatArray?, val indices: 
         }
 
         //texture!!.cleanup()
+
+        // Delete the VAO
+        glBindVertexArray(0)
+        glDeleteVertexArrays(vaoId)
+    }
+
+    fun deleteBuffers() {
+        glDisableVertexAttribArray(0)
+
+        // Delete the VBOs
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        for (vboId in vboIdList) {
+            glDeleteBuffers(vboId)
+        }
 
         // Delete the VAO
         glBindVertexArray(0)

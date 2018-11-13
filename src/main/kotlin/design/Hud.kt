@@ -13,6 +13,7 @@ import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.NULL
 import design.Enums.*
 
+
 class Hud {
 
     private var vg: Long = 0
@@ -49,13 +50,11 @@ class Hud {
 
     @Throws(Exception::class)
     fun init() {
-
         this.vg = nvgCreate(NVG_ANTIALIAS or NVG_STENCIL_STROKES)
         if (this.vg == NULL) throw Exception("Could not init nanovg")
         fontBuffer = Utils.ioResourceToByteBuffer(font.file, 150 * 1024)
         val nvgfont = nvgCreateFontMem(vg, font.toString(), fontBuffer?: ByteBuffer.allocate(0), 0)
         if (nvgfont == -1) throw Exception("Could not add font")
-
     }
 
     fun render(window: GlfWindow, mode: Mode, curv: Curve, spln: Spline) {
@@ -159,10 +158,9 @@ class Hud {
                     Curve.SPLN -> {
                         nvgTextAlign(vg, NVG_ALIGN_CENTER or NVG_ALIGN_MIDDLE)
                         nvgText(vg, x, y - 6.5f * r, Spline.SLOP.tag)
-                        nvgText(vg, x, y - 5.5f * r, Spline.ADD.tag)
+                        nvgText(vg, x, y - 5.5f * r, Spline.PICK.tag)
                         nvgText(vg, x, y - 4.5f * r, Spline.DEL.tag)
-                        nvgText(vg, x, y - 3.5f * r, Spline.PICK.tag)
-                        nvgText(vg, x, y - 2.5f * r, Spline.INSE.tag)
+                        nvgText(vg, x, y - 3.5f * r, Spline.ADD.tag)
                         nvgText(vg, x, y - 1.5f * r, Spline.MOVE.tag)
                     }
                     Curve.IDLE -> {
@@ -176,7 +174,7 @@ class Hud {
 
                             Mode.CURV -> {
                                 nvgTextAlign(vg, NVG_ALIGN_CENTER or NVG_ALIGN_MIDDLE)
-                                nvgText(vg, x, y - 3.5f * r, Curve.CIRC.tag)
+                                nvgText(vg, x, y - 3.5f * r, Curve.ELIP.tag)
                                 nvgText(vg, x, y - 2.5f * r, Curve.BSPL.tag)
                                 nvgText(vg, x, y - 1.5f * r, Curve.SPLN.tag)
                             }

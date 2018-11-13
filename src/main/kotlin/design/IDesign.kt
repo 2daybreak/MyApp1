@@ -7,7 +7,7 @@ interface IDesign {
 
     fun input(window: GlfWindow, mouse: Mouse)
 
-    fun update(interval: Float, mouse: Mouse)
+    fun update(interval: Float, window: GlfWindow, mouse: Mouse)
 
     fun render(window: GlfWindow)
 

@@ -5,8 +5,6 @@ import linearAlgebra.Vector3
 
 abstract class ParametricCurve: Parametric {
 
-    protected abstract var degree: Int
-
     override operator fun invoke(t: Double): Vector3 {
         return curvePoint(t)
     }
@@ -23,6 +21,10 @@ abstract class ParametricCurve: Parametric {
         val d = closestPoint(v) - v
         return d.length
     }
+
+    protected abstract var order: Int
+
+    protected abstract var degree: Int
 
     /**
      * Determine degree (& order), then
@@ -65,11 +67,29 @@ abstract class ParametricCurve: Parametric {
      */
     protected abstract fun closestPoint(v: Vector3): Vector3
 
-    fun getMesh(): Mesh {
+    private val linePerNode = 8
+
+    private val tuftsTuning = 0.1
+
+    fun getPts(rgb: FloatArray): Mesh {
         val c = this
-        val linePerNode = 8
+        val tmp = mutableListOf<Float>()
+        for (t in prm) {
+            tmp.add(c(t).x.toFloat()); tmp.add(c(t).y.toFloat()); tmp.add(c(t).z.toFloat())
+        }
+        val positions: FloatArray = tmp.toFloatArray()
+        tmp.clear()
+        for(v in ctrlPts) {
+            tmp.add(rgb[0]); tmp.add(rgb[1]); tmp.add(rgb[2])
+        }
+        val colours : FloatArray = tmp.toFloatArray()
+
+        return Mesh(positions, colours)
+    }
+
+    fun getCurve(rgb: FloatArray): Mesh {
+        val c = this
         val node = mutableListOf<Vector3>()
-        //Draw curve (interpolation of pts)
         val n = linePerNode * (c.ctrlPts.size - 1)
         if (c.ctrlPts.size > 1) for (i in 0..n) {
             val t = i.toDouble() / n.toDouble()
@@ -79,14 +99,71 @@ abstract class ParametricCurve: Parametric {
         for (v in node) {
             tmp.add(v[0].toFloat()); tmp.add(v[1].toFloat()); tmp.add(v[2].toFloat())
         }
-
         val positions: FloatArray = tmp.toFloatArray()
         tmp.clear()
-        for(i in positions.indices) {
-            tmp.add(1.0f)
+        for (v in node) {
+            tmp.add(rgb[0]); tmp.add(rgb[1]); tmp.add(rgb[2])
         }
         val colours : FloatArray = tmp.toFloatArray()
 
         return Mesh(positions, colours)
+    }
+
+    fun getCtrlPts(rgb: FloatArray): Mesh {
+        val c = this
+        val tmp = mutableListOf<Float>()
+        for (v in ctrlPts) {
+            tmp.add(v[0].toFloat()); tmp.add(v[1].toFloat()); tmp.add(v[2].toFloat())
+        }
+        val positions: FloatArray = tmp.toFloatArray()
+        tmp.clear()
+        for(v in ctrlPts) {
+            tmp.add(rgb[0]); tmp.add(rgb[1]); tmp.add(rgb[2])
+        }
+        val colours : FloatArray = tmp.toFloatArray()
+
+        return Mesh(positions, colours)
+    }
+
+    fun getTufts(rgb: FloatArray): Mesh {
+        val c = this
+        val linePerNode = 8
+        val node = mutableListOf<Vector3>()
+        val n = linePerNode * (c.ctrlPts.size - 1)
+        if (c.ctrlPts.size > 1) for (i in 0..n) {
+            val t = i.toDouble() / n.toDouble()
+            val ders = c(3, t)
+            val binormal = ders[1].cross(ders[2]).normalize()
+            val normal = ders[1].cross(binormal).normalize()
+            node.add(ders[0])
+            node.add(ders[0] + normal * ders[2].length * tuftsTuning)
+        }
+        val tmp = mutableListOf<Float>()
+        for (v in node) {
+            tmp.add(v[0].toFloat()); tmp.add(v[1].toFloat()); tmp.add(v[2].toFloat())
+        }
+        val positions: FloatArray = tmp.toFloatArray()
+        tmp.clear()
+        for (v in node) {
+            tmp.add(rgb[0]); tmp.add(rgb[1]); tmp.add(rgb[2])
+        }
+        val colours : FloatArray = tmp.toFloatArray()
+
+        return Mesh(positions, colours)
+    }
+
+    fun getBoundingPolygon(offset: Double, rayDir: Vector3): List<Vector3> {
+        val c = this
+        val linePerNode = 8
+        val node = mutableListOf<Vector3>()
+        val n = linePerNode * (c.ctrlPts.size - 1)
+        if (c.ctrlPts.size > 1) for (i in 0..n) {
+            val t = i.toDouble() / n.toDouble()
+            val ders = c(2, t)
+            val normal = ders[1].cross(rayDir).normalize()
+            node.add(ders[0] - normal * offset)
+            node.add(ders[0] + normal * offset)
+        }
+        return node
     }
 }

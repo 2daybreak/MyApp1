@@ -23,6 +23,9 @@ class Vector3(val x: Double, val y: Double, val z: Double) {
             else -> throw IndexOutOfBoundsException("Index out of bounds at $index")
         }
     }
+
+    operator fun Double.times(v: Vector3) = v.times(unaryPlus())
+
     override fun toString()        = "[x = ${x}, y = ${y}, z = ${z}]"
     operator fun unaryPlus()       = Vector3(+x, +y, +z)
     operator fun unaryMinus()      = Vector3(-x, -y, -z)
@@ -34,6 +37,7 @@ class Vector3(val x: Double, val y: Double, val z: Double) {
     operator fun div  (d: Int)     = Vector3(x / d, y / d, z / d)
     operator fun plus (v: Vector3) = Vector3(x + v.x, y + v.y, z + v.z)
     operator fun minus(v: Vector3) = Vector3(x - v.x, y - v.y, z - v.z)
+
     fun dot(v: Vector3)  = x * v.x + y * v.y + z * v.z
     fun cross(v: Vector3) = Vector3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x)
     fun normalize(): Vector3 {

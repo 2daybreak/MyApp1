@@ -2,9 +2,6 @@ package design
 
 import java.lang.Float
 import java.nio.FloatBuffer
-import org.lwjgl.opengl.GL11.*
-import org.lwjgl.opengl.GL15.*
-import org.lwjgl.opengl.GL20.*
 import org.lwjgl.opengl.GL30.*
 import org.lwjgl.system.MemoryUtil
 
@@ -52,13 +49,13 @@ class Mesh(positions: FloatArray, colours: FloatArray) {
         }
     }
 
-    fun render() {
+    fun render(glEnum: Int) {
         // Draw the mesh
         glBindVertexArray(vao)
         glEnableVertexAttribArray(0)
         glEnableVertexAttribArray(1)
 
-        glDrawArrays(GL_LINE_STRIP, 0, size)
+        glDrawArrays(glEnum, 0, size)
 
         // Restore state
         glDisableVertexAttribArray(0)

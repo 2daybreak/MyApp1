@@ -51,7 +51,7 @@ constructor(windowTitle: String, width: Int, height: Int, vSync: Boolean, privat
             input()
 
             while (accumulator >= interval) {
-                update(interval, mouse)
+                update(interval, window, mouse)
                 accumulator -= interval
             }
 
@@ -80,12 +80,12 @@ constructor(windowTitle: String, width: Int, height: Int, vSync: Boolean, privat
     }
 
     protected fun input() {
-        mouse.input(window)
+        mouse.input()
         design.input(window, mouse)
     }
 
-    protected fun update(interval: Float, mouse: Mouse) {
-        design.update(interval, mouse)
+    protected fun update(interval: Float, window: GlfWindow, mouse: Mouse) {
+        design.update(interval, window, mouse)
     }
 
     protected fun render() {

@@ -3,8 +3,6 @@ package design
 import org.joml.Matrix4f
 import org.lwjgl.opengl.GL11.*
 import design.Enums.*
-import org.joml.Quaternionf
-import org.joml.Vector3f
 
 class Render {
 
@@ -14,24 +12,12 @@ class Render {
 
     private lateinit var hudShaderProgram: Shader
 
-    private val Z_NEAR = 0.01f
-
-    private val Z_FAR = 1000f
-
-    val FOV = Math.toRadians(60.0).toFloat()
-
-    var projMat4 = Matrix4f()
-
-    var viewMat4 = Matrix4f()
-
-    val quaternionf: Quaternionf = Quaternionf(0f, 0f, 0f, 1f)
-
     @Throws(Exception::class)
     fun init() {
         // Create shader
         shaderProgram = Shader()
-        shaderProgram.createVertexShader(Utils.loadResource("/shaders/vertex0.glsl"))
-        shaderProgram.createFragmentShader(Utils.loadResource("/shaders/fragment0.glsl"))
+        shaderProgram.createVertexShader(Utils.loadResource("/shaders/vertex.glsl"))
+        shaderProgram.createFragmentShader(Utils.loadResource("/shaders/fragment.glsl"))
         shaderProgram.link()
 
         // Create uniforms for world and projection matrices
@@ -51,33 +37,28 @@ class Render {
             glViewport(0, 0, window.width, window.height)
             window.isResized = false
         }
+
         // Bind(finalize) the data
         shaderProgram.bind()
 
         // Update projection matrix
-        val projectionMatrix = transformation.getProjectionMatrix(FOV, window.width.toFloat(), window.height.toFloat(), Z_NEAR, Z_FAR)
-        //val projectionMatrix = transformation.getOrthographicMatrix(window.width.toFloat(), window.height.toFloat(), Z_NEAR, Z_FAR)
-        shaderProgram.setUniform("projectionMatrix", projectionMatrix)
-        projMat4 = transformation.getProjectionMatrix(FOV, window.width.toFloat(), window.height.toFloat(), 1f, 2f)
-
-        // Set world matrix for this item
-        val worldMatrix = when(mode.b) {
-            true -> transformation.getWorldMatrix(Vector3f(camera.position).negate(), quaternionf)
-            false -> transformation.getWorldMatrix(camera)
-        }
-        shaderProgram.setUniform("worldMatrix", worldMatrix)
-        viewMat4 = Matrix4f(worldMatrix)
+        shaderProgram.setUniform("projectionMatrix", window.getProjMat4())
 
         // Update world matrix & Render each gameItem
         for (item in designItems) {
+            val modelMatrix = Matrix4f().set(transformation.getViewMatrix(item.position, item.rotation))
+            shaderProgram.setUniform("worldMatrix",modelMatrix.mul(getViewMatrix(camera)))
             // Render
-            item.mesh.render()
+            item.mesh.render(item.type)
         }
-
         shaderProgram.unbind()
     }
 
     fun cleanup() {
         shaderProgram.cleanup()
+    }
+
+    fun getViewMatrix(camera: Camera): Matrix4f {
+        return Matrix4f(transformation.getViewMatrix(camera))
     }
 }

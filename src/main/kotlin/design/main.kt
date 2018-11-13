@@ -1,5 +1,6 @@
 package design
 
+import linearAlgebra.Vector3
 import org.joml.Vector3f
 
 fun main(args: Array<String>) {

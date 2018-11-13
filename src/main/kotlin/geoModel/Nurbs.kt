@@ -9,6 +9,8 @@ open class Nurbs: Bspline {
         C(t) = Sum( Ni(t) * wi * Pi ) / Sum( Ni(t) * wi )
         where Pi are the control points, wi are the weights, and Ni(t) are the basis funcs defined on the knot vector */
 
+    override val type = "Nurbs"
+
     var wts = mutableListOf<Double>()
 
     constructor(): this(3)
@@ -48,7 +50,7 @@ open class Nurbs: Bspline {
     private fun numerator(span: Int, t: Double, ni: DoubleArray): Vector3 {
         var sum = Vector3().zero
         for (j in 0..degree)
-            sum += ctrlPts[span - degree + j] * ni[j] * wts[span - degree + j]
+            sum += wts[span - degree + j] * ni[j] * ctrlPts[span - degree + j]
         return sum
     }
 

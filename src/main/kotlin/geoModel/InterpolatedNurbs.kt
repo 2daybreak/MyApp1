@@ -5,6 +5,8 @@ import linearAlgebra.Vector3
 
 class InterpolatedNurbs: Nurbs {
 
+    override val type = "Nurbs"
+
     var pts = mutableListOf<Vector3>()
 
     constructor(): this(3)

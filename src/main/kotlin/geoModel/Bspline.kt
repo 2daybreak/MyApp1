@@ -19,15 +19,22 @@ open class Bspline: ParametricCurve {
         C(t) = Sum( Ni(t) * Pi )
         where Pi are the control points, and Ni(t) are the basis funcs defined on the knot vector */
 
+    override val type = "Bspline"
+
     final override val prm = mutableListOf<Double>()
+
     final override val ctrlPts = mutableListOf<Vector3>()
+
     protected val knots = mutableListOf<Double>()
 
-    protected val isCovariant = false
+    private val isCovariant = false
 
-    protected var order = 0
-    override var degree = -1
     private var maxDeg = 0
+
+    final override var degree = -1
+
+    final override var order = 0
+        get() { return degree + 1 }
 
     constructor() : this(3)
 
@@ -43,15 +50,8 @@ open class Bspline: ParametricCurve {
 
     override fun properties(p: MutableList<Vector3>) {
         degree(p.size)
-        order()
-        if(isCovariant) {
-            uniformKnots(p.size)
-            evalPrmKnotAverages(p.size)
-        }
-        else {
-            evalPrm(p)
-            evalKnots()
-        }
+        if(isCovariant) { uniformKnots(p.size); evalPrmKnotAverages(p.size) }
+        else { evalPrm(p); evalKnots() }
     }
 
     override fun addPts(v: Vector3) {
@@ -70,10 +70,10 @@ open class Bspline: ParametricCurve {
     }
 
     override fun removePts(i: Int) {
-        if (i != -1) ctrlPts.removeAt(i)
-        if (!ctrlPts.isEmpty()) {
-            properties(ctrlPts)
-        }
+        if (i > -1)
+            ctrlPts.removeAt(i)
+        if (ctrlPts.isEmpty()) prm.clear()
+        else properties(ctrlPts)
     }
 
     override fun addSlope(i: Int, v: Vector3) {
@@ -95,10 +95,6 @@ open class Bspline: ParametricCurve {
             true -> maxDeg
             false -> nm1
         }
-    }
-
-    private fun order() {
-        order = degree + 1
     }
 
     /**
@@ -298,7 +294,7 @@ open class Bspline: ParametricCurve {
         val nn = basisFuncs(span, t)
         var v = Vector3().zero
         for (j in 0..degree) {
-            v += ctrlPts[span - degree + j] * nn[j]
+            v += nn[j] * ctrlPts[span - degree + j]
         }
         return v
     }
@@ -316,7 +312,7 @@ open class Bspline: ParametricCurve {
         for (k in 0..du) {
             v[k] = Vector3().zero
             for (j in 0..degree) {
-                v[k] += ctrlPts[span - degree + j] * nders[k][j]
+                v[k] += nders[k][j] * ctrlPts[span - degree + j]
             }
         }
         return v
@@ -333,7 +329,7 @@ open class Bspline: ParametricCurve {
         val low = span - degree + 1
         for (i in 0 until degree) {
             val alpha = (t - knots[low + i]) / (knots[span + 1 + i] - knots[low + i])
-            q[i] = q[i + 1] * alpha + q[i] * (1.0 - alpha)
+            q[i] = alpha * q[i + 1] + (1.0 - alpha) * q[i]
         }
         for (i in 0 until degree) {
             if (i != degree - 1) {
@@ -391,7 +387,7 @@ open class Bspline: ParametricCurve {
             i += 1
             if (i > 20) break
         }
-        println("$isOrthogonal, $isConverged")
+        println("isOrthogonal?: $isOrthogonal, isConverged?: $isConverged")
         return c(t)
     }
 }

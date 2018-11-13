@@ -5,6 +5,10 @@ import java.awt.Graphics2D
 
 interface Parametric {
 
+    // Declare public members
+
+    val type: String
+
     val prm: MutableList<Double>
 
     val ctrlPts: MutableList<Vector3>
@@ -14,6 +18,8 @@ interface Parametric {
     operator fun invoke(kmax: Int, t: Double): Array<Vector3>
 
     operator fun invoke(v: Vector3): Vector3
+
+    operator fun Double.times(v: Vector3) = v.times(unaryPlus())
 
     fun addPts(v: Vector3)
 

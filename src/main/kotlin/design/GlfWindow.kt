@@ -1,25 +1,35 @@
 package design
 
+import org.joml.Matrix4f
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWErrorCallback
+import org.lwjgl.glfw.GLFWVidMode
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL11.*
 import org.lwjgl.system.MemoryUtil.NULL
 
 class GlfWindow(val title: String, width: Int, height: Int, private var vSync: Boolean) {
 
-    var width: Int = width
+    var width = width
         private set
 
-    var height: Int = height
+    var height = height
         private set
 
     var windowHandle: Long = 0
         private set
 
-    var isResized: Boolean = false
+    var isResized = false
 
-    val antialiasing = true
+    var perspective = true
+
+    private val antialiasing = true
+
+    private val zNear: Float = 0.01f
+
+    private val zFar: Float = 10E6f
+
+    private val fov = Math.toRadians(60.0).toFloat()
 
     fun init() {
         // Setup an error callback. The default implementation
@@ -60,12 +70,12 @@ class GlfWindow(val title: String, width: Int, height: Int, private var vSync: B
         }
 
         // Get the resolution of the primary monitor
-        val vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor())
+        val vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor())!!
         // Center our window
         glfwSetWindowPos(
                 windowHandle,
-                (vidmode!!.width() - width) / 2,
-                (vidmode!!.height() - height) / 2
+                (vidmode.width() - width) / 2,
+                (vidmode.height() - height) / 2
         )
 
         // Make the OpenGL context current
@@ -82,10 +92,12 @@ class GlfWindow(val title: String, width: Int, height: Int, private var vSync: B
         GL.createCapabilities()
 
         // Set the clear color
-        glClearColor(0.1f, 0.1f, 0.1f, 0.0f)
+        glClearColor(0.1f, 0.1f, 0.1f, 1f)
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_STENCIL_TEST)
-        //glEnable(GL_CULL_FACE)
+        glEnable(GL_CULL_FACE)
+        glEnable(GL_POINT_SMOOTH)
+        glPointSize(5f)
 
         // Antialiasing
         if (antialiasing) {
@@ -96,10 +108,18 @@ class GlfWindow(val title: String, width: Int, height: Int, private var vSync: B
     fun restoreState() {
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_STENCIL_TEST)
-        //glEnable(GL_CULL_FACE)
+        glEnable(GL_CULL_FACE)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         //glDisable(GL_BLEND)
         //glDisable(GL_SCISSOR_TEST)
+    }
+
+    fun getProjMat4(): Matrix4f {
+        val aspectRatio = width.toFloat() / height.toFloat()
+        val projectionMatrix = Matrix4f()
+        if(perspective) projectionMatrix.perspective(fov, aspectRatio, zNear, zFar)
+        else projectionMatrix.ortho(-aspectRatio, aspectRatio, -1f, 1f, zNear, zFar)
+        return projectionMatrix
     }
 
     fun setClearColor(r: Float, g: Float, b: Float, alpha: Float) {

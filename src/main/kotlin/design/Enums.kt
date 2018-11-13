@@ -29,18 +29,18 @@ class Enums {
 
     enum class Curve(val b: Boolean, val id: Int, val tag: String, val shortcut: Int) {
         IDLE(false, 0, "Curve", GLFW_KEY_ESCAPE),
-        CIRC(true, 1, "Circle", GLFW_KEY_C),
-        BSPL(true, 2, "B-spline", GLFW_KEY_B),
+        ELIP(true, 1, "Elipse", GLFW_KEY_E),
+        BSPL(true, 2, "Bspline", GLFW_KEY_B),
         SPLN(true, 3, "Spline", GLFW_KEY_S)
     }
 
     enum class Spline(val b: Boolean, val id: Int, val tag: String, val shortcut: Int) {
         IDLE(false, 0, "Spline", GLFW_KEY_ESCAPE),
-        SLOP(true, 1, "Slope", GLFW_KEY_S),
-        ADD (true, 2, "Add", GLFW_KEY_A),
-        DEL (true, 3, "Delete", GLFW_KEY_D),
-        PICK(true, 4, "Pick", GLFW_KEY_P),
-        INSE(true, 5, "Insert", GLFW_KEY_LEFT_SHIFT),
+        SLOP(true, 1, "Angle", GLFW_KEY_L),
+        REMO(true, 2, "Remove Angle", GLFW_KEY_R),
+        PICK(true, 3, "Pick", GLFW_KEY_P),
+        DEL (true, 4, "Delete", GLFW_KEY_D),
+        ADD (true, 5, "Add", GLFW_KEY_LEFT_SHIFT),
         MOVE(true, 6, "Move", GLFW_KEY_LEFT_CONTROL)
     }
 

@@ -2,36 +2,38 @@ package design
 
 import design.Enums.*
 import geoModel.*
+import gui.Gui
 import linearAlgebra.Vector3
 import org.joml.*
 import org.lwjgl.glfw.GLFW.*
-import gui.DummyGui
+import org.lwjgl.opengl.GL11.*
 
 class DummyDesign : IDesign {
 
     private var mode: Mode = Mode.VIEW
-
     private var curv: Curve = Curve.IDLE
-
     private var spln: Spline = Spline.IDLE
 
-    private var moving = false
-
     private var rotating = false
+    private var leftButtonPressed = false
+    private var leftButtonReleased = false
 
     private val hud: Hud = Hud()
-
-    private val gui = DummyGui()
-
+    private val gui: Gui = Gui()
+    private val camera: Camera = Camera()
     private val render: Render = Render()
-
+    private val rayTrace: RayTrace = RayTrace()
     private val designItems = mutableListOf<DesignItem>()
-
     private val curves = mutableListOf<ParametricCurve>()
+    private var gapOfpick: Vector3 = Vector3()
+    private var currentIndex = 0
+    private var indexOfPoint = -1
 
-    private var leftButtonPressed = false
-
-    private val camera = Camera(Vector3f(0f, 0f, 3f))
+    private val colorOfCurve = floatArrayOf(0f, 1f, 0f)
+    private val colorOfPoint = floatArrayOf(0f, 1f, 1f)
+    private val colorOfCtrlPts = floatArrayOf(0.5f, 0.5f, 0.5f)
+    private val colorOfTufts = floatArrayOf(1f, 0f, 0f)
+    private val colorOfSelected = floatArrayOf(1f, 1f, 0f)
 
     @Throws(Exception::class)
     override fun init(window: GlfWindow) {
@@ -79,129 +81,309 @@ class DummyDesign : IDesign {
         )
 
         val mesh = Mesh(positions, colours)
-        val designItem = DesignItem(mesh)
-        designItem.setPosition(0f, 0f, 0f)
-        designItems.add(designItem)
+        val designItem = DesignItem(GL_LINE_STRIP, mesh)
         designItems.add(designItem)
     }
 
+    fun Vector2d.toFloat() = Vector2f(x.toFloat(), y.toFloat())
+    fun Vector3. toFloat() = Vector3f(x.toFloat(), y.toFloat(), z.toFloat())
+    fun Vector3f.toDouble() = Vector3(x.toDouble(), y.toDouble(), z.toDouble())
+
     override fun input(window: GlfWindow, mouse: Mouse) {
 
-        if (window.isKeyPressed(GLFW_KEY_W)) camera.position.add(Vector3f(camera.front).mul(0.05f))
-        if (window.isKeyPressed(GLFW_KEY_S)) camera.position.add(Vector3f(camera.front).mul(-0.05f))
-        if (window.isKeyPressed(GLFW_KEY_A)) camera.position.add(Vector3f(camera.front).cross(Vector3f(camera.up)).normalize().mul(-0.05f))
-        if (window.isKeyPressed(GLFW_KEY_D)) camera.position.add(Vector3f(camera.front).cross(Vector3f(camera.up)).normalize().mul(0.05f))
+        if (window.isKeyPressed(GLFW_KEY_UP))
+            camera.position.add(Vector3f(camera.front).mul(0.05f))
+
+        if (window.isKeyPressed(GLFW_KEY_DOWN))
+            camera.position.add(Vector3f(camera.front).mul(-0.05f))
+
+        if (window.isKeyPressed(GLFW_KEY_LEFT))
+            camera.position.add(Vector3f(camera.front).cross(camera.up).mul(-0.05f))
+
+        if (window.isKeyPressed(GLFW_KEY_RIGHT))
+            camera.position.add(Vector3f(camera.front).cross(camera.up).mul(0.05f))
+
+        if (window.isKeyPressed(GLFW_KEY_LEFT_CONTROL)) rotating = true
+
+        if (window.isKeyPressed(GLFW_KEY_F))
+            camera.setCamera(Vector3f(0f, 0f, 1f), Vector3f(0f, 0f, -1f), Vector3f(0f, 1f, 0f))
 
         if (window.isKeyPressed(GLFW_KEY_ESCAPE)) {
             mode = Mode.VIEW
             curv = Curve.IDLE
             spln = Spline.IDLE
-        }
-        if (window.isKeyPressed(GLFW_KEY_F2)) {
-            mode = Mode.IDLE
-        }
-        if (window.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) {
-            when {
-                mode == Mode.IDLE -> moving = true
-                mode == Mode.VIEW -> moving = true
-                curv == Curve.BSPL -> spln = Spline.INSE
-                curv == Curve.SPLN -> spln = Spline.INSE
+            if(currentIndex > -1) {
+                val curve = curves[currentIndex]
+                drawCurve(currentIndex, curve)
             }
         }
-        if (window.isKeyPressed(GLFW_KEY_LEFT_CONTROL)) {
-            when {
-                mode == Mode.IDLE -> rotating = true
-                mode == Mode.VIEW -> rotating = true
-                curv == Curve.BSPL -> spln = Spline.MOVE
-                curv == Curve.SPLN -> spln = Spline.MOVE
-            }
-        }
-        if (window.isKeyPressed(GLFW_KEY_C)) {
-            mode = Mode.CURV
-        }
-        if (window.isKeyPressed(GLFW_KEY_C)) {
-            if(mode == Mode.CURV) {
-                curv = Curve.SPLN
-                curves.add(InterpolatedBspline())
-            }
-        }
-        val aux = mouse.isLeftButtonPressed
-        if (aux && !this.leftButtonPressed) {
-            when(mode) {
-                Mode.CURV -> {
-                    when(curv) {
-                        Curve.SPLN -> {
-                            val pos: Vector2d = mouse.position
-                            updateCurve(pos)
-                        }
 
+        if (window.isKeyPressed(GLFW_KEY_F3)) {
+            mode = Mode.IDLE
+            curv = Curve.IDLE
+            spln = Spline.IDLE
+        }
+
+        if (window.isKeyPressed(GLFW_KEY_F4)) {
+            Save().saveScreenShot(window.width, window.height, "screenshot.png")
+        }
+        when(mode) {
+            Mode.IDLE, Mode.VIEW -> {
+                if (window.isKeyPressed(GLFW_KEY_C)) {
+                    mode = Mode.CURV
+                    println("C pressed")
+                }
+                if (window.isKeyPressed(GLFW_KEY_S)) {
+                    mode = Mode.SURF
+                    println("S pressed")
+                }
+            }
+            Mode.CURV -> {
+                when (curv) {
+                    Curve.IDLE -> {
+                        if (window.isKeyPressed(GLFW_KEY_E) && curv != Curve.ELIP) {
+                            curv = Curve.ELIP
+                            //curves.add(Circle())
+                            println("E pressed")
+                        }
+                        if (window.isKeyPressed(GLFW_KEY_S) && curv != Curve.SPLN) {
+                            curv = Curve.SPLN
+                            curves.add(InterpolatedBspline())
+                            currentIndex = curves.size - 1
+                            val curve = curves[currentIndex]
+                            prepareDrawCurve(curve)
+                            println("S pressed")
+                        }
+                        if (window.isKeyPressed(GLFW_KEY_B) && curv != Curve.BSPL) {
+                            curv = Curve.BSPL
+                            curves.add(Bspline())
+                            currentIndex = curves.size - 1
+                            val curve = curves[currentIndex]
+                            prepareDrawCurve(curve)
+                            println("B pressed")
+                        }
+                    }
+                    Curve.ELIP -> {
+                    }
+                    Curve.SPLN -> {
+                        if (window.isKeyPressed(GLFW_KEY_L) && spln != Spline.SLOP) {
+                            spln = Spline.SLOP
+                            println("L pressed")
+                        }
+                        if (window.isKeyPressed(GLFW_KEY_R) && spln != Spline.REMO) {
+                            spln = Spline.REMO
+                            println("R pressed")
+                        }
+                        if (window.isKeyPressed(GLFW_KEY_P) && spln != Spline.PICK) {
+                            spln = Spline.PICK
+                            println("P pressed")
+                        }
+                        if (window.isKeyPressed(GLFW_KEY_D) && spln != Spline.DEL) {
+                            spln = Spline.DEL
+                            println("D pressed")
+                        }
+                        if (window.isKeyPressed(GLFW_KEY_A) && spln != Spline.ADD) {
+                            spln = Spline.ADD
+                            println("A pressed")
+                        }
+                        if (window.isKeyPressed(GLFW_KEY_M) && spln != Spline.MOVE) {
+                            spln = Spline.MOVE
+                            println("M pressed")
+                        }
+                    }
+                    Curve.BSPL -> {
+                        if (window.isKeyPressed(GLFW_KEY_A) && spln != Spline.ADD) {
+                            spln = Spline.ADD
+                            println("A pressed")
+                        }
                     }
                 }
-                else -> {}
+            }
+            Mode.SURF -> {}
+        }
+
+        rayTrace.set(camera.position, window.getProjMat4(), render.getViewMatrix(camera))
+        val vertex = rayTrace.rayPlane(window, mouse.currentPos, Vector3f(), Vector3f(0f, 0f, 1f)) // get vertex on z-plane
+        //println("x=${vertex.x}, y=${vertex.y}, z=${vertex.z}")
+
+        // mouse left button callback
+        if (mouse.isLeftButtonPressed && !this.leftButtonPressed) {
+            Save().colorPick(window, mouse.currentPos)
+            when(mode) {
+                Mode.VIEW -> {
+                    val offset = camera.position.length() * 0.02
+                    if(!curves.isEmpty()) for(curve in curves) {
+                        var flag = false
+                        if(curve.prm.size == 1) {
+                            val radius = camera.position.length() * 0.02f
+                            val v = curve(1.0)
+                            flag = rayTrace.raySphere(window, mouse.currentPos,
+                                    v.toFloat(), radius)
+                        }
+                        else {
+                            val rayDir = rayTrace.rayDirection(window, mouse.currentPos)
+                            val boundingPos = curve.getBoundingPolygon(offset, rayDir.toDouble())
+                            for(i in 0 until boundingPos.size - 2) {
+                                val v0 = boundingPos[i + 0].toFloat()
+                                val v1 = boundingPos[i + 1].toFloat()
+                                val v2 = boundingPos[i + 2].toFloat()
+                                val l = rayTrace.rayTriangle(window, mouse.currentPos, v0, v1, v2)
+                                //println("l=$l")
+                                flag = l > 0f
+                                if(flag) break
+                            }
+                        }
+                        //println(flag)
+                        if(flag) {
+                            mode = Mode.CURV
+                            curv = Curve.SPLN
+                            currentIndex = curves.indexOf(curve)
+                            updateDrawCurve(currentIndex, curve)
+                        }
+                    }
+                }
+                Mode.CURV -> {
+
+                    val curve = curves[currentIndex]
+                    when (spln) {
+                        Spline.SLOP -> {
+                            val radius = camera.position.length() * 0.1f
+                            for (p in curve.prm) {
+                                val v = curve(p)
+                                val index = curve.prm.indexOf(p)
+                                val flag = rayTrace.raySphere(window, mouse.currentPos, v.toFloat(), radius)
+                                if (flag) {
+                                    curve.addSlope(index, (vertex.toDouble() - v).normalize())
+                                    break
+                                }
+                            }
+                        }
+                        Spline.REMO -> {
+                            val radius = camera.position.length() * 0.02f
+                            for (p in curve.prm) {
+                                val v = curve(p)
+                                val index = curve.prm.indexOf(p)
+                                val flag = rayTrace.raySphere(window, mouse.currentPos, v.toFloat(), radius)
+                                if (flag) {
+                                    curve.removeSlope(index)
+                                    break
+                                }
+                            }
+                        }
+                        Spline.PICK -> { }
+                        Spline.DEL -> {
+                            val radius = camera.position.length() * 0.02f
+                            for (p in curve.prm) {
+                                val v = curve(p)
+                                val index = curve.prm.indexOf(p)
+                                val flag = rayTrace.raySphere(window, mouse.currentPos, v.toFloat(), radius)
+                                if (flag) {
+                                    curve.removePts(index)
+                                    break
+                                }
+                            }
+
+                        }
+                        Spline.ADD -> {
+                            curve.addPts(vertex.toDouble())
+                        }
+                        Spline.MOVE -> {
+                            val radius = camera.position.length() * 0.05f
+                            for (p in curve.prm) {
+                                val v = curve(p)
+                                val index = curve.prm.indexOf(p)
+                                val flag = rayTrace.raySphere(window, mouse.currentPos, v.toFloat(), radius)
+                                if (flag){
+                                    indexOfPoint = index
+                                    val vertex = rayTrace.rayPlane(window, mouse.currentPos, Vector3f(), Vector3f(0f, 0f, 1f))
+                                    //gapOfpick = v - vertex.toDouble()
+                                    val v4 = Vector4f(v.x.toFloat(), v.y.toFloat(), v.z.toFloat(),1f)
+                                            .mul(render.getViewMatrix(camera))
+                                            .mul(window.getProjMat4())
+
+                                    println("x= ${v4.x}, y= ${v4.y}")
+                                    mouse.setCursorPos(window,
+                                            (v4.x.toDouble() + 1.0) * window.width / 2,
+                                            -(v4.y.toDouble() - 1.0) * window.height / 2)
+                                    println("picked")
+                                }
+                            }
+                        }
+                    }
+                    updateDrawCurve(currentIndex, curve)
+                }
             }
         }
-        this.leftButtonPressed = aux
-    }
+        this.leftButtonPressed = mouse.isLeftButtonPressed
 
-    override fun update(interval: Float, mouse: Mouse) {
-
-        val off: Double = mouse.offset
-        updateZoom(off)
-
-        if (mouse.isLeftButtonPressed) {
-            val del: Vector2d = mouse.motion
-            updateTranslation(del)
-            updateRotation(del)
-        }
-    }
-
-    private fun updateTranslation(x: Float, y: Float, z: Float) {
-        val mouseSensitivity = 5f
-        camera.position.add(Vector3f(camera.front).cross(Vector3f(camera.up)).normalize().mul(-x * mouseSensitivity))
-        camera.position.add(Vector3f(camera.up).mul(-y * mouseSensitivity))
-    }
-
-    private fun updateTranslation(del: Vector2d) {
-        if (moving) updateTranslation(del.x.toFloat(), del.y.toFloat(), 0f)
-        moving = false
-    }
-
-    private fun updateRotation(del: Vector2d) {
-        if (rotating) {
-            val mouseSensitivity = 5f
-            when(mode.b) {
-                true -> {
-                    val q = render.quaternionf
-                    q.rotateLocalX(mouseSensitivity * -del.y.toFloat())
-                    q.rotateLocalY(mouseSensitivity * del.x.toFloat())
-                }
-                false -> {
-                    camera.quaternionf.identity()
-                    camera.quaternionf.rotateAxis(mouseSensitivity * del.y.toFloat(), camera.right)
-                    camera.quaternionf.rotateAxis(mouseSensitivity * -del.x.toFloat(), camera.up)
-                    camera.setRotation()
+        // mouse release callback
+        if (mouse.isLeftButtonReleased && !this.leftButtonReleased) {
+            when(spln) {
+                Spline.MOVE -> {
+                    indexOfPoint = -1
                 }
             }
-            rotating = false
+        }
+        this.leftButtonReleased = mouse.isLeftButtonReleased
+    }
+
+    override fun update(interval: Float, window: GlfWindow, mouse: Mouse) {
+
+        //zoom along to the ray direction
+        val rayDir = rayTrace.rayDirection(window, mouse.currentPos)
+        camera.translate(rayDir.mul(mouse.offset.toFloat()))
+
+        if (mouse.isRightButtonPressed) {
+            updateTranslation(mouse.motion.toFloat())
+            updateRotation(mouse.motion.toFloat())
+        }
+        if (mouse.isLeftButtonPressed and (indexOfPoint != -1)) {
+            val curve = curves[currentIndex]
+            when(spln) {
+                Spline.MOVE -> {
+                    val vertex = rayTrace.rayPlane(window, mouse.currentPos, Vector3f(), Vector3f(0f, 0f, 1f))
+                    //curve.modPts(indexOfPoint, vertex.toDouble())
+                    updateDrawCurve(currentIndex, curve)
+                }
+            }
         }
     }
 
-    private fun updateZoom(offset: Double) {
-        val wheelSensitivity = 1f
-        camera.position.add(Vector3f(camera.front).mul(wheelSensitivity * offset.toFloat()))
+    private fun updateTranslation(v: Vector2f) {
+        val mouseSensitivity = 0.01f
+        v.mul(mouseSensitivity)
+        if (!rotating) camera.translate(-v.x, v.y)
     }
 
-    private fun updateCurve(e: Vector2d) {
-        if (!moving) {
-            val p = camera.position
-            // NDC to model coord.
-            val v = Vector4f(e.x.toFloat(), e.y.toFloat(), -1f, 1f).mul(Matrix4f(render.projMat4).invert()).mul(Matrix4f(render.viewMat4).invert())
-            val c = curves[0]
-            c.addPts(Vector3(v.x, v.y, v.z))
-            println("x=${v.x}, y=${v.y}, z=${v.z}")
-            val item = DesignItem(c.getMesh())
-            designItems[0] = item
-        }
+    private fun updateRotation(v: Vector2f) {
+        val mouseSensitivity = 0.05f
+        v.mul(mouseSensitivity)
+        if (rotating) camera.rotateGlobal(-v.y, -v.x)
+        rotating = false
+    }
+
+    private fun prepareDrawCurve(curve: ParametricCurve) {
+        designItems.add(DesignItem(GL_POINTS, curve.getPts(colorOfPoint)))
+        designItems.add(DesignItem(GL_LINE_STRIP, curve.getCurve(colorOfCurve)))
+        designItems.add(DesignItem(GL_POINTS, curve.getCtrlPts(colorOfCtrlPts)))
+        designItems.add(DesignItem(GL_LINE_STRIP, curve.getCtrlPts(colorOfCtrlPts)))
+        designItems.add(DesignItem(GL_LINES, curve.getTufts(colorOfTufts)))
+    }
+
+    private fun updateDrawCurve(index: Int, curve: ParametricCurve) {
+        designItems[5 * index + 0 + 1].mesh = curve.getPts(colorOfSelected)
+        designItems[5 * index + 1 + 1].mesh = curve.getCurve(colorOfSelected)
+        designItems[5 * index + 2 + 1].mesh = curve.getCtrlPts(colorOfCtrlPts)
+        designItems[5 * index + 3 + 1].mesh = curve.getCtrlPts(colorOfCtrlPts)
+        designItems[5 * index + 4 + 1].mesh = curve.getTufts(colorOfTufts)
+    }
+
+    private fun drawCurve(index: Int, curve: ParametricCurve) {
+        designItems[5 * index + 0 + 1].mesh = curve.getPts(colorOfPoint)
+        designItems[5 * index + 1 + 1].mesh = curve.getCurve(colorOfCurve)
+        designItems[5 * index + 2 + 1].mesh = Mesh(floatArrayOf(), floatArrayOf())
+        designItems[5 * index + 3 + 1].mesh = Mesh(floatArrayOf(), floatArrayOf())
+        designItems[5 * index + 4 + 1].mesh = Mesh(floatArrayOf(), floatArrayOf())
     }
 
     override fun render(window: GlfWindow) {
@@ -218,4 +400,3 @@ class DummyDesign : IDesign {
         hud.cleanup()
     }
 }
-

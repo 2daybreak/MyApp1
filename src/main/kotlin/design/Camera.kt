@@ -9,60 +9,52 @@ class Camera {
 
     val position: Vector3f
 
-    val front: Vector3f =
-            Vector3f(0f, 0f, -1f)
-    val up: Vector3f =
-            Vector3f(0f, 1f, 0f)
+    val front: Vector3f
+
+    val up: Vector3f
+
     val right: Vector3f
         get() { return Vector3f(front).cross(up).normalize() }
 
     val quaternionf: Quaternionf = Quaternionf()
 
-    val rotation: Vector3f = Vector3f()
-
     constructor() {
-        position = Vector3f()
+        position = Vector3f(0f, 0f, 1f)
+        front = Vector3f(0f, 0f, -1f)
+        up = Vector3f(0f, 1f, 0f)
     }
 
-    constructor(position: Vector3f) {
-        this.position = position
+    fun setCamera(position: Vector3f, front: Vector3f, up: Vector3f) {
+        this.position.set(position)
+        this.front.set(front)
+        this.up.set(up)
     }
 
-    fun setPosition(x: Float, y: Float, z: Float) {
-        position.x = x
-        position.y = y
-        position.z = z
+    fun translate(moveX: Float, moveY: Float) {
+        val amp = position.length()
+        position.add(Vector3f(front).cross(up).mul(moveX * amp))
+        position.add(Vector3f(up).mul(moveY * amp))
     }
 
-    fun movePosition(offsetX: Float, offsetY: Float, offsetZ: Float) {
-        position.x += offsetX
-        position.y += offsetY
-        position.z += offsetZ
+    fun translate(v: Vector3f) {
+        position.add(v)
     }
 
-    fun setRotation(x: Float, y: Float, z: Float) {
-        rotation.x = x
-        rotation.y = y
-        rotation.z = z
+    fun rotateGlobal(angleX: Float, angleY: Float) {
+        quaternionf.identity()
+        quaternionf.rotateAxis(angleX, right)
+        quaternionf.rotateAxis(angleY, up)
+        position.rotate(quaternionf)
+        front.rotate(quaternionf)
+        up.rotate(quaternionf)
     }
 
-    fun moveRotation(offsetX: Float, offsetY: Float, offsetZ: Float) {
-        rotation.x += offsetX
-        rotation.y += offsetY
-        rotation.z += offsetZ
+    fun rotateLocal(angleX: Float, angleY: Float) {
+        quaternionf.identity()
+        quaternionf.rotateAxis(angleX, right)
+        quaternionf.rotateAxis(angleY, up)
+        front.rotate(quaternionf)
+        up.rotate(quaternionf)
     }
 
-    fun setRotation() {
-        val f = Vector4f(front.x, front.y, front.z, 0f)
-        val u = Vector4f(up.x, up.y, up.z, 0f)
-        val rotation = Matrix4f().identity().rotate(quaternionf)
-        f.mul(rotation)
-        u.mul(rotation)
-        front.x = f.x
-        front.y = f.y
-        front.z = f.z
-        up.x = u.x
-        up.y = u.y
-        up.z = u.z
-    }
 }

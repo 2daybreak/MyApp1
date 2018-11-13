@@ -5,6 +5,7 @@ import linearAlgebra.MatrixSolvLU.*
 
 class InterpolatedBspline: Bspline {
 
+    override val type = "Spline"
     private val pts = mutableListOf<Vector3>()
     private val slp = mutableListOf<Vector3>()
     private val isl = mutableListOf<Int>()
@@ -46,10 +47,19 @@ class InterpolatedBspline: Bspline {
     }
 
     override fun removePts(i: Int) {
-        if (i != -1) pts.removeAt(i)
-        if (!pts.isEmpty()) {
-            properties(pts); evalCtrlPoints()
+        if (i > -1) {
+            pts.removeAt(i)
+            removeSlope(i)
+            for(j in isl.indices) {
+                if(isl[j] > i) {
+                    isl[j] = isl[j] - 1
+                    println("reduced")
+                }
+
+            }
         }
+        if (pts.isEmpty()) { prm.clear(); ctrlPts.clear() }
+        else { properties(pts); evalCtrlPoints() }
     }
 
     override fun addSlope(i: Int, v: Vector3) {
@@ -66,8 +76,10 @@ class InterpolatedBspline: Bspline {
             val ind = isl.indexOf(i)
             slp[ind] = v
             isl[ind] = i
+            properties(pts)
+            evalCtrlPoints()
         }
-        properties(pts); evalCtrlPoints()
+
     }
 
     override fun removeSlope(i: Int) {
@@ -75,8 +87,9 @@ class InterpolatedBspline: Bspline {
             val ind = isl.indexOf(i)
             slp.removeAt(ind)
             isl.removeAt(ind)
+            properties(pts)
+            evalCtrlPoints()
         }
-        properties(pts); evalCtrlPoints()
     }
 
     override fun evalKnots() {
@@ -189,15 +202,10 @@ class InterpolatedBspline: Bspline {
                     val nn = dersBasisFunc(1, span, prm[isl[i]])
                     for (j in 0..degree)
                         aa[npi][span - degree + j] = nn[1][j]
-                    bb[npi] = v[i] * chord
+                    bb[npi] = chord * v[i]
                 }
             }
         }
-/*        for (i in 0 until m) {
-            print("i=$i, ")
-            for (j in 0 until m) print("${aa[i][j]},")
-            println("")
-        }*/
         val ind = IntArray(m)
         ludcmp(m, aa, ind)
         ctrlPts.addAll(lubksb(m, aa, ind, bb))

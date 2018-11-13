@@ -1,58 +1,59 @@
 package design
 
 import org.joml.Vector2d
-
+import org.joml.Vector2f
 import org.lwjgl.glfw.GLFW.*
 
 class Mouse {
 
-    private val previousPos: Vector2d = Vector2d(-1.0, -1.0)
-
-    val position: Vector2d = Vector2d()
-
+    // Normalized device coord.
+    val currentPos: Vector2d = Vector2d()
     val motion: Vector2d = Vector2d()
+    var offset: Double = 0.0; private set
+    var isLeftButtonPressed: Boolean = false; private set
+    var isLeftButtonReleased: Boolean = false; private set
+    var isRightButtonPressed: Boolean = false; private set
+    var isMiddleButtonPressed: Boolean = false; private set
 
-    private var currentScroll: Double = 0.toDouble()
-
-    var offset: Double = 0.0
-        private set
-
-    var isLeftButtonPressed = false
-        private set
-
-    var isRightButtonPressed = false
-        private set
-
-    var isMiddleButtonPressed = false
-        private set
-
+    private val previousPos: Vector2d = Vector2d()
+    private var scroll: Double = 0.0
     private var inWindow = false
 
+    fun Vector2d.toFloat() = Vector2f(x.toFloat(), y.toFloat())
+
     fun init(window: GlfWindow) {
-        glfwSetCursorPosCallback(window.windowHandle) { windowHandle, xpos, ypos ->
-            val w = window.width
-            val h = window.height
-            position.x = 2 * xpos / w - 1.0
-            position.y = 1.0 - 2 * ypos / h
+        glfwSetCursorPosCallback(window.windowHandle) {
+            windowHandle, xpos, ypos ->
+            currentPos.x = xpos
+            currentPos.y = ypos
         }
-        glfwSetCursorEnterCallback(window.windowHandle) { windowHandle, entered -> inWindow = entered }
+        glfwSetCursorEnterCallback(window.windowHandle) {
+            windowHandle, entered ->
+            inWindow = entered
+        }
+        glfwSetScrollCallback(window.windowHandle) {
+            windowHandle, dx, dy ->
+            scroll = dy
+        }
         glfwSetMouseButtonCallback(window.windowHandle) { windowHandle, button, action, mode ->
             isLeftButtonPressed = button == GLFW_MOUSE_BUTTON_1 && action == GLFW_PRESS
+            isLeftButtonReleased = button == GLFW_MOUSE_BUTTON_1 && action == GLFW_RELEASE
             isRightButtonPressed = button == GLFW_MOUSE_BUTTON_2 && action == GLFW_PRESS
             isMiddleButtonPressed = button == GLFW_MOUSE_BUTTON_3 && action == GLFW_PRESS
         }
-        glfwSetScrollCallback(window.windowHandle) { windowHandle, dx, dy -> currentScroll = dy }
     }
 
-    fun input(window: GlfWindow) {
+    fun input() {
         if (inWindow) {
-            motion.x = position.x - previousPos.x
-            motion.y = position.y - previousPos.y
+            motion.x = (currentPos.x - previousPos.x)
+            motion.y = (currentPos.y - previousPos.y)
+            previousPos.set(currentPos)
         }
-        previousPos.x = position.x
-        previousPos.y = position.y
+        offset = scroll
+        scroll = 0.0
+    }
 
-        offset = currentScroll
-        currentScroll = 0.0
+    fun setCursorPos(window: GlfWindow, xpos: Double, ypos: Double) {
+        glfwSetCursorPos(window.windowHandle, xpos, ypos)
     }
 }
