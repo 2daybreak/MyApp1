@@ -72,7 +72,7 @@ open class Bspline: ParametricCurve {
     override fun removePts(i: Int) {
         if (i > -1)
             ctrlPts.removeAt(i)
-        if (ctrlPts.isEmpty()) prm.clear()
+        if (ctrlPts.isEmpty()) { prm.clear(); knots.clear() }
         else properties(ctrlPts)
     }
 
