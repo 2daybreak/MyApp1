@@ -48,15 +48,14 @@ class InterpolatedBspline: Bspline {
 
     override fun removePts(i: Int) {
         if (i > -1) {
-            pts.removeAt(i)
             removeSlope(i)
             for(j in isl.indices) {
                 if(isl[j] > i) {
                     isl[j] = isl[j] - 1
                     println("reduced")
                 }
-
             }
+            pts.removeAt(i)
         }
         if (pts.isEmpty()) { prm.clear(); ctrlPts.clear() }
         else { properties(pts); evalCtrlPoints() }
