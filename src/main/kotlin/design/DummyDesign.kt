@@ -203,7 +203,7 @@ class DummyDesign : IDesign {
         }
 
         rayTrace.set(camera.position, window.getProjMat4(), render.getViewMatrix(camera))
-        val vertex = rayTrace.rayPlane(window, mouse.currentPos, Vector3f(), Vector3f(0f, 0f, 1f)) // get vertex on z-plane
+        val vertex = rayTrace.rayPlane(window, mouse.currentPos, Vector3f(), Vector3f(0f, 0f, -camera.front.z/*1f*/)) // get vertex on z-plane
         //println("x=${vertex.x}, y=${vertex.y}, z=${vertex.z}")
 
         // mouse left button callback

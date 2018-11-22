@@ -50,15 +50,10 @@ class InterpolatedBspline: Bspline {
         if (i > -1) {
             removeSlope(i)
             pts.removeAt(i)
-            for(j in isl.indices) {
-                if(isl[j] > i) {
-                    isl[j] = isl[j] - 1
-                    println("reduced")
-                }
-            }
+            for(j in isl.indices) if(isl[j] > i) isl[j] -= 1
+            properties(pts)
+            evalCtrlPoints()
         }
-        if (pts.isEmpty()) { prm.clear(); ctrlPts.clear() }
-        else { properties(pts); evalCtrlPoints() }
     }
 
     override fun addSlope(i: Int, v: Vector3) {
@@ -78,7 +73,6 @@ class InterpolatedBspline: Bspline {
             properties(pts)
             evalCtrlPoints()
         }
-
     }
 
     override fun removeSlope(i: Int) {

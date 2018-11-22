@@ -43,6 +43,7 @@ class Gui {
 
         val fontTexture = FontTexture(FONT, CHARSET)
         val textItem = TextItem("Hello", fontTexture)
+        textItem.setPosition(300f, 300f, 0f)
         meshs.add(textItem.mesh)
     }
 

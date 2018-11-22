@@ -50,8 +50,15 @@ open class Bspline: ParametricCurve {
 
     override fun properties(p: MutableList<Vector3>) {
         degree(p.size)
-        if(isCovariant) { uniformKnots(p.size); evalPrmKnotAverages(p.size) }
-        else { evalPrm(p); evalKnots() }
+        if (p.isEmpty()) {
+            prm.clear()
+            ctrlPts.clear()
+        }
+        else {
+            evalPrm(p)
+            evalKnots()
+            //if(isCovariant) { uniformKnots(p.size); evalPrmKnotAverages(p.size) }
+        }
     }
 
     override fun addPts(v: Vector3) {
